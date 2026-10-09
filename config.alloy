@@ -1,0 +1,18 @@
+local.file_match "payment_logs" {
+  path_targets = [{
+    "__path__" = "/var/log/payment/*.log",
+    "job" = "fake-upi-payment-api",
+    "service" = "fake-upi-payment-api",
+  }]
+}
+
+loki.source.file "payment_logs" {
+  targets    = local.file_match.payment_logs.targets
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

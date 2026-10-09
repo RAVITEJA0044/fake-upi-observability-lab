@@ -1,0 +1,61 @@
+services:
+  payment-api:
+    build: ./app
+    container_name: fake-upi-payment-api
+    environment:
+      LOG_FILE: /var/log/payment/app.log
+    ports:
+      - "8000:8000"
+    volumes:
+      - payment-logs:/var/log/payment
+    depends_on:
+      - victoriametrics
+      - loki
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    container_name: fake-upi-victoriametrics
+    command:
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-promscrape.config=/etc/victoriametrics/prometheus.yml"
+      - "-promscrape.configCheckInterval=10s"
+    ports:
+      - "8428:8428"
+    volumes:
+      - ./victoriametrics/prometheus.yml:/etc/victoriametrics/prometheus.yml:ro
+      - vm-data:/victoria-metrics-data
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: fake-upi-loki
+    command: ["-config.file=/etc/loki/config.yaml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: fake-upi-alloy
+    command: ["run", "/etc/alloy/config.alloy", "--server.http.listen-addr=0.0.0.0:12345"]
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - payment-logs:/var/log/payment:ro
+    depends_on:
+      - loki
+
+  perses:
+    image: persesdev/perses:latest
+    container_name: fake-upi-perses
+    ports:
+      - "8080:8080"
+    depends_on:
+      - victoriametrics
+
+volumes:
+  payment-logs:
+  vm-data:
+  loki-data:
